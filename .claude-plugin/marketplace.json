@@ -1,0 +1,16 @@
+{
+  "name": "clafer",
+  "description": "Claude Code plugins for Clafer, a lightweight modeling language",
+  "owner": {
+    "name": "Generative Software Development Lab",
+    "url": "https://github.com/gsdlab"
+  },
+  "plugins": [
+    {
+      "name": "clafer",
+      "source": "./",
+      "description": "Write, structure, fix and check Clafer models (.cfr), static or temporal, with clafer, claferIG and chocosolver",
+      "category": "development"
+    }
+  ]
+}
