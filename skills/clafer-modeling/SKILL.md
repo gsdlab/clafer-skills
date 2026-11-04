@@ -8,6 +8,7 @@ description: Write, structure, fix and check Clafer models (.cfr), static or tem
 Clafer models structure as a hierarchy of clafers, which are features, classes and states at once, with constraints over it.
 A static model has instances; a temporal model has traces of states, each of them an instance.
 The language reference is the CheatSheet (`doc/CheatSheet.md` in the clafer repository).
+Where the tools differ from the papers on Clafer's semantics, and why, is in `doc/static-semantics-errata.md` (Bąk et al. 2016) and `doc/temporal-semantics-errata.md` (Juodisius et al. 2019) there.
 This guide is for Clafer 0.5.7.
 
 ## Workflow
