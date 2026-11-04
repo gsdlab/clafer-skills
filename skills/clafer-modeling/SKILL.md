@@ -104,7 +104,7 @@ Clafer unifies feature models and class models: one clafer can be a feature, a c
   - the group: `abstract or feature` becomes `xor f : feature`;
   - the reference target: `abstract link -> Port *` becomes `l : link -> Hub.p 1`, the ports of one hub, and a set reference can refine a bag (`->>`);
   - the value: an initializer `fan -> integer = 2`, or a constraint `[ speed = 3 ]`;
-  - modifiers: `final` on the abstract clafer is inherited by its refinements. To add `final` in a refinement, restate the reference: `final motor : engine -> Engine`. With only `final motor : engine`, the inherited reference may still change during a trace (gsdlab/clafer#109).
+  - modifiers: `final` on the abstract clafer is inherited by its refinements. A refinement can add `final`, `finalref` or `finaltarget`: `final motor : engine` fixes the inherited reference (Clafer 0.5.7). Before 0.5.7, the inherited reference could still change during a trace unless restated, `final motor : engine -> Engine` (gsdlab/clafer#109).
   An abstract nested clafer that a subclafer does not refine has no instances in it: the subclafer simply lacks that part.
 - **Constraints read like requirements.** A name alone means "some" (`[ encryption ]`), a reference stands for its value (`[ speed = 3 ]`), and names resolve from the context, so most constraints need neither quantifiers nor paths.
 - **One model, many views.** The same model is a feature model to configure (claferIG, chocosolver, the configurator), a class model to instantiate, a product line with objectives to optimize (chocosolver), and, with temporal modifiers, a behaviour to simulate and check (claferIG).
