@@ -38,7 +38,7 @@ camera : Component            // concrete, inherits children, group and referenc
 - **Default multiplicity of children:** mandatory (`1`) under no group or `0..*`; optional (`0..1`) under `xor`, `or`, `mux`, `opt` and any other range such as `2..3`. Write `?` only where it adds something.
 - **Group cardinality** (left of the name) counts child *instances*: `xor` 1..1, `or` 1..*, `mux` 0..1 (at most one), `opt` 0..* with optional children. A child with `1..5` can satisfy `2..3` alone. A concrete clafer's group counts its own and its inherited children.
 - A group whose lower bound the children cannot reach (`xor` over no children) is a compile error.
-- **References:** `-> T` is a set (no repeated targets among the instances of a clafer under one parent), `->> T` a bag. Where a value is expected, a reference stands for its target (`[ speed = 3 ]` means `speed.dref = 3`).
+- **References:** `-> T` is a set (no repeated targets among the instances of a clafer under one parent), `->> T` a bag. Where a value is expected, a reference stands for its target (`[ speed = 3 ]` means `speed.dref = 3`), and a comparison of two references compares their targets (`this.a = parent.b.a`, Clafer 0.5.7). To compare the reference instances themselves, compare `this` or a variable, or write `dref` on one side.
 - **Enums:** `enum Color = red | green | blue`.
 - **Types:** `integer`, `string`, `decimal` (Choco only; the scale is the most fractional digits of the literals), `double`/`real` (no backend).
 - **Objectives** (Choco): `<< minimize total.cost >>`, `<< maximize perf >>`.
@@ -164,7 +164,7 @@ tesla : Car
 
 - A name alone means "some": `[ extras ]` is `[ some extras ]`.
 - Names resolve to the nearest clafer: the descendants of the context first, then the ancestors (and their descendants), then the children of the context's reference target, then the top level. So inside a reference clafer, a name that an ancestor also has resolves to the ancestor's: `[ latency <= speed ]` under `link -> Port`, in a component that has ports with a `speed`, compares with the component's own ports. Write `this.speed` for the target's, and `parent.speed` for the enclosing one, to make the choice explicit.
-- `this.dref.speed`, where `speed` is a reference, does not compile ("Cannot deref from type", gsdlab/clafer#108); write `this.speed`, which goes through the reference.
+- After an explicit `dref`, the names are the target's children: `this.dref.speed` is the target's `speed`, also when the reference clafer has a `speed` of its own, and it is the same as `this.speed` otherwise. (Before Clafer 0.5.7 it did not compile, gsdlab/clafer#108; write `this.speed` there.)
 - `parent` goes up; `this.parent` of a top-level abstract clafer's instance is the parent of its subclafer's instance.
 - Quantifiers: `all x : X | …`, `some`, `no`, `one`, `lone`, and `disj` for distinct variables. Several variables are separated by `;`, not `,`: `all disj a; b : Task | a.d != b.d`. `not` is the quantifier `no`; boolean negation is `!`.
 - Set operators: `++` union, `**` intersection (`&` is deprecated), `--` difference, `in`, `.` join.
