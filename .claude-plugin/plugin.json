@@ -1,0 +1,13 @@
+{
+  "name": "clafer",
+  "version": "0.5.7",
+  "description": "Write, structure, fix and check Clafer models (.cfr), static or temporal, with clafer, claferIG and chocosolver",
+  "author": {
+    "name": "Generative Software Development Lab",
+    "url": "https://github.com/gsdlab"
+  },
+  "homepage": "https://github.com/gsdlab/clafer-skills",
+  "repository": "https://github.com/gsdlab/clafer-skills",
+  "license": "MIT",
+  "keywords": ["clafer", "modeling", "feature-modeling", "alloy", "choco"]
+}
