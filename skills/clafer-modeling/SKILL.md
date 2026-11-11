@@ -9,7 +9,7 @@ Clafer models structure as a hierarchy of clafers, which are features, classes a
 A static model has instances; a temporal model has traces of states, each of them an instance.
 The language reference is the CheatSheet (`doc/CheatSheet.md` in the clafer repository).
 Where the tools differ from the papers on Clafer's semantics, and why, is in `doc/static-semantics-errata.md` (Bąk et al. 2016) and `doc/temporal-semantics-errata.md` (Juodisius et al. 2019) there.
-This guide is for Clafer 0.5.7.
+This guide is for Clafer 0.5.8.
 
 ## Workflow
 
@@ -40,6 +40,7 @@ camera : Component            // concrete, inherits children, group and referenc
 - **Group cardinality** (left of the name) counts child *instances*: `xor` 1..1, `or` 1..*, `mux` 0..1 (at most one), `opt` 0..* with optional children. A child with `1..5` can satisfy `2..3` alone. A concrete clafer's group counts its own and its inherited children.
 - A group whose lower bound the children cannot reach (`xor` over no children) is a compile error.
 - **References:** `-> T` is a set (no repeated targets among the instances of a clafer under one parent), `->> T` a bag. Where a value is expected, a reference stands for its target (`[ speed = 3 ]` means `speed.dref = 3`), and a comparison of two references compares their targets (`this.a = parent.b.a`, Clafer 0.5.7). To compare the reference instances themselves, compare `this` or a variable, or write `dref` on one side.
+- **Initializers:** `fan -> integer = 2` fixes the value: `[ some fan => fan.dref = 2 ]` in the parent's context, in every state of a temporal model. `level -> integer := 3` is the initial value (Clafer 0.5.8): the same as `=` in a static model, and in a temporal model each lifetime of `level` starts with 3, which may then change. The value is resolved in the parent's context, where it is written. A set initializer (`xs -> integer * := 1, 2`) initializes the instances under the parent when the parent appears, not those created later. `finalref x -> integer := y` keeps the value `y` has when `x` appears. `:=` is not a soft default: with `[ level = 5 ]`, `:= 3` has no instance. Before 0.5.8, `:=` compiled to an assertion (gsdlab/clafer#116), so the model had instances and a counterexample.
 - **Enums:** `enum Color = red | green | blue`.
 - **Types:** `integer`, `string`, `decimal` (Choco only; the scale is the most fractional digits of the literals), `double`/`real` (no backend).
 - **Objectives** (Choco): `<< minimize total.cost >>`, `<< maximize perf >>`.
@@ -83,6 +84,7 @@ golf : Car
 - Nest abstract clafers to declare what each instance has, and refine them in the subclafers: `motor : engine -> electric` is the `engine` of `tesla`, with its target narrowed from `Engine` to `electric`. Its constraints and those of `engine` both hold.
 - Give a refining clafer its own name. A redefinition with the same name as the inherited clafer (`engine : engine -> electric`) compiles, but then `tesla.engine` is ambiguous: it could be either clafer.
 - A super clafer must be abstract; inheritance from concrete clafers is not supported.
+- A super can be a path to a nested abstract clafer: `h : Person.Head`. Each name after the first is a child of the previous clafer, its own or else an inherited one, so under `Ella : Person`, `Ella.Head` is `Person.Head` unless Ella redefines `Head` (`abstract Head : Head`, which extends `Person.Head` and can add children). A path tells apart two abstract clafers with the same name (`Dog.Head`, `Person.Head`). Before Clafer 0.5.8, a path super crashed the compiler (`Maybe.fromJust: Nothing`) once a constraint mentioned the clafer, and was silently dropped otherwise; write the plain name there.
 - Abstract clafers can be nested under concrete clafers too (`System` with `abstract Port` and `p1 : Port`).
 
 ### Use the expressive power of Clafer
@@ -104,7 +106,7 @@ Clafer unifies feature models and class models: one clafer can be a feature, a c
   - the multiplicity: `abstract port : Port *` becomes `p : port 2`;
   - the group: `abstract or feature` becomes `xor f : feature`;
   - the reference target: `abstract link -> Port *` becomes `l : link -> Hub.p 1`, the ports of one hub, and a set reference can refine a bag (`->>`);
-  - the value: an initializer `fan -> integer = 2`, or a constraint `[ speed = 3 ]`;
+  - the value: an initializer `fan -> integer = 2`, or a constraint `[ speed = 3 ]`. An inherited initializer cannot be replaced, only strengthened: the own one is added to it. Under `abstract val -> integer := 2`, `v : val = 2` fixes the value in every state, while `:= 3` or `= 3` has no instance; under `= 2`, a `:= 2` has no effect, and the compiler warns about it (Clafer 0.5.8). For different initial values, put the shared one in an intermediate abstract clafer (`abstract defaultVal : val := 2`) and let the others extend `val` directly (`override : val := 3`);
   - modifiers: `final` on the abstract clafer is inherited by its refinements. A refinement can add `final`, `finalref` or `finaltarget`: `final motor : engine` fixes the inherited reference (Clafer 0.5.7). Before 0.5.7, the inherited reference could still change during a trace unless restated, `final motor : engine -> Engine` (gsdlab/clafer#109).
   An abstract nested clafer that a subclafer does not refine has no instances in it: the subclafer simply lacks that part.
 - **Constraints read like requirements.** A name alone means "some" (`[ encryption ]`), a reference stands for its value (`[ speed = 3 ]`), and names resolve from the context, so most constraints need neither quantifiers nor paths.
