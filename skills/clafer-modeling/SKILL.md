@@ -14,10 +14,72 @@ This guide is for Clafer 0.5.8.
 ## Workflow
 
 1. Write the smallest model that shows the idea, then grow it. Most models of a few clafers solve in about a second; a model that takes minutes is usually contradictory or has scopes that are too large.
-2. Compile it: `clafer model.cfr` (`-m alloy` or `-m choco` to see the generated models). Errors come as `model.cfr:line:column`.
+2. Compile it: `clafer model.cfr` (`-m alloy` or `-m choco` to see the generated models). Errors come as `model.cfr:line:column`. When a construct does not mean what you expect, read its explicit form: `clafer -m clafer model.cfr` writes `model.des.cfr` (see below).
 3. Look at instances: `claferIG model.cfr` (Alloy) or `chocosolver --file model.cfr --repl --prettify` (Choco). Look at several instances (`n`), not just the first: they show what the model leaves open.
 4. State what must hold as assertions and run `check` in claferIG. "No counterexample" holds only within the scopes (and the trace length).
 5. For a configuration or behaviour that should be possible, write a scenario in a file that imports the model, and check that it has an instance; also check that a variant that should be impossible has none.
+
+## The explicit form: what a model means
+
+Every Clafer model has an explicit form, in which nothing is left to defaults: every group cardinality, every multiplicity, every path and every `dref` is written out. `clafer -m clafer model.cfr` prints it to `model.des.cfr`, and it is itself a model that compiles to itself (`//# OPTIONS --explicit`). Learn the explicit form first: the rest of the syntax is sugar for it, and most surprises about defaults disappear when you read what a model desugars to.
+
+A clafer in the explicit form is
+
+```
+<group cardinality> <name> [: <super>] [-> <target> | ->> <target>] <multiplicity> {
+  <children>
+  [ <constraints> ]
+}
+```
+
+with the group cardinality on the left (how many child instances an instance has, counted over all its children) and the multiplicity on the right (how many instances under each parent instance). For example,
+
+```
+abstract Component                abstract 0..* Component 0..* {
+  version -> integer                0..* version -> int 1..1 {}
+  xor mode                          1..1 mode 1..1 {
+    active                            0..* active 0..1 {}
+    standby                           0..* standby 0..1 {}
+                                    }
+  extras ?                          0..* extras 0..1 {}
+  ports -> Port 1..3                0..* ports -> Port 1..3 {}
+Port 2                            }
+  speed -> integer                0..* Port 2..2 {
+camera : Component                  0..* speed -> int 1..1 {}
+  [ version >= 2 ]                }
+  [ extras ]                      0..* camera : Component 1..1 {
+  [ speed = 3 ]                     [this.version.dref >= 2]
+                                    [(#this.extras) >= 1]
+                                    [Port.speed.dref = 3]
+                                  }
+```
+
+The last constraint shows why the explicit form is worth reading: `speed` in `camera` is the `speed` of all the ports at the top level (`Port.speed`), not of the camera's own `ports` (`this.ports.speed`). Write the path you mean.
+
+What the sugar stands for:
+
+| Sugar | Explicit form |
+|---|---|
+| no group cardinality | `0..*`: no constraint on the number of children |
+| `xor`, `or`, `mux`, `opt`, `n..m` | `1..1`, `1..*`, `0..1`, `0..*`, `n..m` |
+| no multiplicity | `1..1` (mandatory), but `0..1` (optional) under `xor`, `or`, `mux`, `opt` or a range such as `2..3` |
+| `?`, `*`, `+`, `n` | `0..1`, `0..*`, `1..*`, `n..n` |
+| `-> integer` | `-> int`, one target per instance; `->` is a set reference, `->>` a bag |
+| a name `x` in a constraint | a path from the context: `this.x`, `this.parent.x`, a path through the reference target, or a top-level `X.x` |
+| `[ x ]`, `[ no x ]`, `[ one p ]` | `[(#this.x) >= 1]`, `[(#this.x) = 0]`, `[(#this.o.p) = 1]` |
+| a reference where a value is expected | its target: `[ version >= 2 ]` is `[this.version.dref >= 2]` |
+| `fan -> integer = 2` | `[((#fan) >= 1) => (fan.dref = 2)]` in the parent's context |
+| `level -> integer := 3` (temporal) | `[initially (this.dref = 3)]` in the context of `level` |
+| `xs -> integer * := 1` | `[((#this.xs) >= 1) => (this.xs.dref = 1)]` in the parent's context, under `initially` in a temporal model |
+| `idle -[ coin ]-> brewing` | `[(((#this) >= 1) && ((#coin) >= 1)) => (X ((#this.parent.brewing) >= 1))]` in `idle` |
+| `brewing -->> ready` | `[((#this) >= 1) => (((#this) >= 1) U ((#this.parent.ready) >= 1))]` in `brewing` |
+
+Consequences that follow directly from the explicit form:
+
+- A clafer is a set of instances under each parent, never a single object: `#x`, `some x` and `x.dref` are over that set, and a constraint that holds for "the" `x` holds for each instance.
+- An initializer `=` is an ordinary constraint of the parent, so it holds only if the clafer exists, and a subclafer's own initializer is just another constraint added to it.
+- A transition is a constraint of its source state, so it is part of that state's lifetime (see Temporal models).
+- When an instance count or a name looks wrong, the explicit form shows the multiplicity, group or path that the compiler chose.
 
 ## Structure
 
@@ -39,8 +101,8 @@ camera : Component            // concrete, inherits children, group and referenc
 - **Default multiplicity of children:** mandatory (`1`) under no group or `0..*`; optional (`0..1`) under `xor`, `or`, `mux`, `opt` and any other range such as `2..3`. Write `?` only where it adds something.
 - **Group cardinality** (left of the name) counts child *instances*: `xor` 1..1, `or` 1..*, `mux` 0..1 (at most one), `opt` 0..* with optional children. A child with `1..5` can satisfy `2..3` alone. A concrete clafer's group counts its own and its inherited children.
 - A group whose lower bound the children cannot reach (`xor` over no children) is a compile error.
-- **References:** `-> T` is a set (no repeated targets among the instances of a clafer under one parent), `->> T` a bag. Where a value is expected, a reference stands for its target (`[ speed = 3 ]` means `speed.dref = 3`), and a comparison of two references compares their targets (`this.a = parent.b.a`, Clafer 0.5.7). To compare the reference instances themselves, compare `this` or a variable, or write `dref` on one side.
-- **Initializers:** `fan -> integer = 2` fixes the value: `[ some fan => fan.dref = 2 ]` in the parent's context, in every state of a temporal model. `level -> integer := 3` is the initial value (Clafer 0.5.8): the same as `=` in a static model, and in a temporal model each lifetime of `level` starts with 3, which may then change. The value is resolved in the parent's context, where it is written. A set initializer (`xs -> integer * := 1, 2`) initializes the instances under the parent when the parent appears, not those created later. `finalref x -> integer := y` keeps the value `y` has when `x` appears. `:=` is not a soft default: with `[ level = 5 ]`, `:= 3` has no instance. Before 0.5.8, `:=` compiled to an assertion (gsdlab/clafer#116), so the model had instances and a counterexample.
+- **References:** `-> T` is a set (no repeated targets among the instances of a clafer under one parent, also when the clafer inherits the reference; instances of different clafers may share a target, Clafer 0.5.8), `->> T` a bag. Where a value is expected, a reference stands for its target (`[ speed = 3 ]` means `speed.dref = 3`), and a comparison of two references compares their targets (`this.a = parent.b.a`, Clafer 0.5.7). To compare the reference instances themselves, compare `this` or a variable, or write `dref` on one side.
+- **Initializers:** `fan -> integer = 2` fixes the value: `[ some fan => fan.dref = 2 ]` in the parent's context, in every state of a temporal model. `level -> integer := 3` is the initial value (Clafer 0.5.8): the same as `=` in a static model, and in a temporal model each lifetime of `level` starts with 3, which may then change. The value is resolved in the parent's context, where it is written. A set initializer (`xs -> integer * := 1, 2`) initializes the instances under the parent when the parent appears, not those created later. On an abstract clafer, the multiplicity decides this clock, and the subclafers keep it: `abstract Val -> integer := 1` initializes each instance when it is born, `abstract Val -> integer * := 1` the instances under a parent when the parent is born (or, at the top level, in the first state). `finalref x -> integer := y` keeps the value `y` has when `x` appears. `:=` is not a soft default: with `[ level = 5 ]`, `:= 3` has no instance. Before 0.5.8, `:=` compiled to an assertion (gsdlab/clafer#116), so the model had instances and a counterexample.
 - **Enums:** `enum Color = red | green | blue`.
 - **Types:** `integer`, `string`, `decimal` (Choco only; the scale is the most fractional digits of the literals), `double`/`real` (no backend).
 - **Objectives** (Choco): `<< minimize total.cost >>`, `<< maximize perf >>`.
@@ -87,6 +149,29 @@ golf : Car
 - A super can be a path to a nested abstract clafer: `h : Person.Head`. Each name after the first is a child of the previous clafer, its own or else an inherited one, so under `Ella : Person`, `Ella.Head` is `Person.Head` unless Ella redefines `Head` (`abstract Head : Head`, which extends `Person.Head` and can add children). A path tells apart two abstract clafers with the same name (`Dog.Head`, `Person.Head`). Before Clafer 0.5.8, a path super crashed the compiler (`Maybe.fromJust: Nothing`) once a constraint mentioned the clafer, and was silently dropped otherwise; write the plain name there.
 - Abstract clafers can be nested under concrete clafers too (`System` with `abstract Port` and `p1 : Port`).
 
+### Encapsulate abstractions
+
+An abstract clafer is a class: it owns its parts, its invariants and its behaviour. Design it as you would an object-oriented class.
+
+- **Keep the state inside.** Put the parts, the constraints over them and the state machine of a concept in its abstract clafer, so every instance has them and they cannot be forgotten. A constraint in the abstract clafer is a class invariant: it holds for every instance of every subclafer.
+- **A small interface.** Expose what users of the abstraction set or read: a few attributes and references, e.g., `start` and `end` of a counter. Keep the rest as children that only the abstraction's own constraints mention. A subclafer then configures the abstraction through the interface (`[ this.start = 2 ]`), not by constraining its internals.
+- **No global names inside.** A constraint in an abstraction that names a top-level clafer of one model ties the abstraction to that model. Give the abstraction a reference to what it depends on (`abstract engine -> Engine`), and let the subclafer narrow it (`motor : engine -> electric`), as a constructor parameter would. Use `parent` sparingly for the same reason: it assumes where the abstraction is placed.
+- **No reaching in from outside.** A top-level constraint that navigates into the internals of an abstraction's instances (`[ all c : Counter | c.val.internal … ]`) breaks when the abstraction changes. State the requirement in the abstraction, or as a constraint of the interface.
+- **Identity and state apart.** In a temporal model, make the object `final` and its mutable state a non-final child: `abstract final Counter` with `final start -> integer` and `val -> integer := this.start`. The counter stays the same object during a trace, and only `val` changes.
+- **Specialize by strengthening.** A subclafer adds constraints and narrows multiplicities, groups and targets; it cannot weaken or replace what it inherits. If a subclafer needs to differ, factor the shared part into an intermediate abstract clafer.
+
+```
+abstract final Counter                  // the object: fixed during a trace
+    final start -> integer              // the interface, set by the subclafers
+    final end -> integer
+    val -> integer := this.start        // the state: starts at start, changes
+        [ all v : integer | (this = v --> this = (if v < parent.end then v + 1 else parent.start)) ]
+
+c2to6 : Counter                         // configured through its interface only
+    [ this.start = 2 ]
+    [ this.end = 6 ]
+```
+
 ### Use the expressive power of Clafer
 
 Clafer unifies feature models and class models: one clafer can be a feature, a class, an association, an attribute or a state. Use that instead of encoding it as in other languages.
@@ -106,7 +191,7 @@ Clafer unifies feature models and class models: one clafer can be a feature, a c
   - the multiplicity: `abstract port : Port *` becomes `p : port 2`;
   - the group: `abstract or feature` becomes `xor f : feature`;
   - the reference target: `abstract link -> Port *` becomes `l : link -> Hub.p 1`, the ports of one hub, and a set reference can refine a bag (`->>`);
-  - the value: an initializer `fan -> integer = 2`, or a constraint `[ speed = 3 ]`. An inherited initializer cannot be replaced, only strengthened: the own one is added to it. Under `abstract val -> integer := 2`, `v : val = 2` fixes the value in every state, while `:= 3` or `= 3` has no instance; under `= 2`, a `:= 2` has no effect, and the compiler warns about it (Clafer 0.5.8). For different initial values, put the shared one in an intermediate abstract clafer (`abstract defaultVal : val := 2`) and let the others extend `val` directly (`override : val := 3`);
+  - the value: an initializer `fan -> integer = 2`, or a constraint `[ speed = 3 ]`. An inherited initializer cannot be replaced, only strengthened: the own one is added to it. Under `abstract val -> integer := 2`, `v : val = 2` fixes the value in every state, while `:= 3` or `= 3` has no instance; under `= 2`, a `:= 2` only repeats the value and a `:= 3` leaves no instance; the compiler warns that a `:=` does not redefine an inherited `=` (Clafer 0.5.8). For different initial values, put the shared one in an intermediate abstract clafer (`abstract defaultVal : val := 2`) and let the others extend `val` directly (`override : val := 3`);
   - modifiers: `final` on the abstract clafer is inherited by its refinements. A refinement can add `final`, `finalref` or `finaltarget`: `final motor : engine` fixes the inherited reference (Clafer 0.5.7). Before 0.5.7, the inherited reference could still change during a trace unless restated, `final motor : engine -> Engine` (gsdlab/clafer#109).
   An abstract nested clafer that a subclafer does not refine has no instances in it: the subclafer simply lacks that part.
 - **Constraints read like requirements.** A name alone means "some" (`[ encryption ]`), a reference stands for its value (`[ speed = 3 ]`), and names resolve from the context, so most constraints need neither quantifiers nor paths.
@@ -177,6 +262,7 @@ tesla : Car
 - `no (a && b)` does not compile (a quantifier over a boolean): write `!(a && b)`.
 - A tautology such as `x = x` is rejected as redundant.
 - `assert [ … ]` must hold in every instance (every trace); nested assertions hold for each instance of their clafer.
+- `let v = e in body` is `body` with `e` for `v` (Clafer 0.5.8): it names an expression, not a value. In a temporal formula, `v` is re-evaluated in each state, so it cannot capture the value of the current state for a later one; use a quantifier (`all v : integer | this = v --> …`).
 
 ## Temporal models
 
@@ -203,6 +289,16 @@ xor machine
 - **Patterns** read as requirements: `never p`, `sometime p`, `always p`, `lonce p`, `p must precede q`, `p must follow q`, with the scopes `before q`, `after q`, `between q and r`, `after q until r`.
 - **Values change too:** `temperature -> integer` with `[ this = 0 -[ machine.heating ]-> this = 5 ]` in its own context. Keep all rules about one value under that clafer.
 
+### Consequences of the semantics in practice
+
+- **Where a constraint lives decides how long it lasts.** A constraint is checked for each instance of its clafer in each state in which the instance exists, and what it requires of later states lasts while the instance's parent exists. Put a rule about a state in the state, a rule about a value under the value, and a rule that must outlive a machine above the machine.
+- **An instance has a value only while it exists** (Clafer 0.5.8). A requirement on the value of an instance in a later state, e.g., `[ X (this.dref = 7) ]` or `this = v --> this = v + 1`, also requires the instance to exist then. So a rule for every value keeps its clafer alive, and an optional clafer with such a rule cannot disappear while the rule applies. A negated comparison, `X (this.dref != 7)`, holds for an absent instance.
+- **Every new instance is initialized again.** `:=` applies at each birth. If a mandatory clafer may be replaced by a fresh instance (scope 2 or more), the value starts over; rules that keep the instance alive, `final`, or a constraint such as `[ all v : val | G (v in val) ]` prevent the replacement.
+- **The value of `:=` is evaluated where it is written**, in the parent's context, also its temporal operators (Clafer 0.5.8): in `x -> integer := if X (some flag) then 1 else 2`, `X (some flag)` is about the parent's `flag` in the next state, also when the parent disappears then.
+- **Rules for values.** A rule that depends on the current value needs a quantifier, with parentheses, since a transition binds looser than the quantifier: `[ all v : integer | (this = v --> this = v + 1) ]`. Without them, `v` is unknown after `-->`.
+- **One trace is one loop.** Behaviours that run side by side share the loop of the trace, so their periods need a common multiple within the trace length: counters with periods 5 and 6 need `tl` 30. A model that should have traces and has none may only need a longer `tl`.
+- **`final` is shallow, and fixes identity.** `final` on a clafer fixes its instances while the parent exists, not its children; mark each part that must not change. `final` on an object keeps the object, not its non-final state.
+
 ### Scenarios and assertions
 
 - **A chain is a sequence:** `a --> b --> c` is `a => X (b && X c)`. Its first state is only a condition.
@@ -226,6 +322,7 @@ xor machine
 - Transitions bind loosest: `initially green --> yellow` is `(initially green) --> yellow`. Write `initially (green --> yellow)`.
 - `X a || b` is `(X a) || b`. `never p && q` is `never (p && q)`.
 - A clafer declared with `xor` right after a clafer with a transition continues that transition's expression: declare it first, or write the transition as a constraint.
+- `X`, `F`, `G`, `U` and `W` are temporal operators, so a clafer cannot be named `X`: `abstract X -> integer` is a syntax error. The same holds for the pattern keywords (`never`, `sometime`, `always`, …).
 - Sibling clafers on one line (`b : B A 3`) are a parse error. A line that starts with a comment is indented as if the comment were not there.
 
 ## Tools
