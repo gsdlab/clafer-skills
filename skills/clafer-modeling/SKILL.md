@@ -49,7 +49,7 @@ camera : Component                  0..* speed -> int 1..1 {}
   [ version >= 2 ]                }
   [ extras ]                      0..* camera : Component 1..1 {
   [ speed = 3 ]                     [this.version.dref >= 2]
-                                    [(#this.extras) >= 1]
+                                    [some this.extras]
                                     [Port.speed.dref = 3]
                                   }
 ```
@@ -66,14 +66,14 @@ What the sugar stands for:
 | `?`, `*`, `+`, `n` | `0..1`, `0..*`, `1..*`, `n..n` |
 | `-> integer` | `-> int`, one target per instance; `->` is a set reference, `->>` a bag |
 | a name `x` in a constraint | a path from the context: `this.x`, `this.parent.x`, a path through the reference target, or a top-level `X.x` |
-| `[ x ]`, `[ no x ]`, `[ one p ]` | `[(#this.x) >= 1]`, `[(#this.x) = 0]`, `[(#this.o.p) = 1]` |
+| `[ x ]`, `[ no x ]`, `[ one p ]` | `[some this.x]`, `[no this.x]`, `[one this.o.p]` |
 | a reference where a value is expected | its target: `[ version >= 2 ]` is `[this.version.dref >= 2]` |
-| `fan -> integer = 2` | `[((#fan) >= 1) => (fan.dref = 2)]` in the parent's context |
+| `fan -> integer = 2` | `[(some fan) => (fan.dref = 2)]` in the parent's context |
 | `level -> integer := 3` (temporal) | `[initially (this.dref = 3)]` in the context of `level` |
-| `xs -> integer * := 1` | `[((#this.xs) >= 1) => (this.xs.dref = 1)]` in the parent's context, under `initially` in a temporal model |
+| `xs -> integer * := 1` | `[(some this.xs) => (this.xs.dref = 1)]` in the parent's context, under `initially` in a temporal model |
 | `xs -> integer * := each 1` | `[all xs_1 : this.xs \| xs_1.dref = 1]` in the parent's context (static), `[initially (this.dref = 1)]` in `xs` (temporal) |
-| `idle -[ coin ]-> brewing` | `[(((#this) >= 1) && ((#coin) >= 1)) => (X ((#this.parent.brewing) >= 1))]` in `idle` |
-| `brewing -->> ready` | `[((#this) >= 1) => (((#this) >= 1) U ((#this.parent.ready) >= 1))]` in `brewing` |
+| `idle -[ coin ]-> brewing` | `[((some this) && (some coin)) => (X (some this.parent.brewing))]` in `idle` |
+| `brewing -->> ready` | `[(some this) => ((some this) U (some this.parent.ready))]` in `brewing` |
 
 Consequences that follow directly from the explicit form:
 
