@@ -6,9 +6,9 @@ Agent skills for modeling in [Clafer](https://github.com/gsdlab/clafer), a light
 
 | Skill | What it does |
 |---|---|
-| [clafer-modeling](skills/clafer-modeling/SKILL.md) | Write, structure, fix and check Clafer models (`.cfr`), static or temporal, and run them with clafer, claferIG and chocosolver |
+| [clafer-modeling](skills/clafer-modeling/SKILL.md) | Write, structure, fix and check Clafer models (`.cfr`), static or temporal, and run them with clafer, claferIG and clafersg |
 
-The skills are for Clafer 0.6.0. They expect `clafer`, `claferIG` and `chocosolver` on the `PATH`; see the [Clafer Tools installation](https://github.com/gsdlab/clafer#installation).
+The skills are for Clafer 0.6.0. They expect `clafer`, `claferIG` and `clafersg` on the `PATH`; see the [Clafer Tools installation](https://github.com/gsdlab/clafer#installation).
 
 ## Installation
 

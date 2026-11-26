@@ -1,6 +1,6 @@
 ---
 name: clafer-modeling
-description: Write, structure, fix and check Clafer models (.cfr), static or temporal, and run them with clafer, claferIG and chocosolver. Use when asked to model something in Clafer, to split a model into files, to debug a model that has no instances or traces or that does not compile, to write scenarios or assertions, or to explain what a Clafer construct means.
+description: Write, structure, fix and check Clafer models (.cfr), static or temporal, and run them with clafer, claferIG and clafersg (formerly chocosolver). Use when asked to model something in Clafer, to split a model into files, to debug a model that has no instances or traces or that does not compile, to write scenarios or assertions, or to explain what a Clafer construct means.
 ---
 
 # Modeling in Clafer
@@ -15,7 +15,7 @@ This guide is for Clafer 0.6.0.
 
 1. Write the smallest model that shows the idea, then grow it. Most models of a few clafers solve in about a second; a model that takes minutes is usually contradictory or has scopes that are too large.
 2. Compile it: `clafer model.cfr` (`-m alloy` or `-m choco` to see the generated models). Errors come as `model.cfr:line:column`. When a construct does not mean what you expect, read its explicit form: `clafer -m clafer model.cfr` writes `model.des.cfr` (see below).
-3. Look at instances: `claferIG model.cfr` (Alloy) or `chocosolver --file model.cfr --repl --prettify` (Choco). Look at several instances (`n`), not just the first: they show what the model leaves open.
+3. Look at instances: `claferIG model.cfr` (Alloy) or `clafersg --file model.cfr --repl --prettify` (Choco for a static model, Alloy for a temporal one). Look at several instances (`n`), not just the first: they show what the model leaves open.
 4. State what must hold as assertions and run `check` in claferIG. "No counterexample" holds only within the scopes (and the trace length).
 5. For a configuration or behaviour that should be possible, write a scenario in a file that imports the model, and check that it has an instance; also check that a variant that should be impossible has none.
 
@@ -196,7 +196,7 @@ Clafer unifies feature models and class models: one clafer can be a feature, a c
   - modifiers: `final` on the abstract clafer is inherited by its refinements. A refinement can add `final`, `finalref` or `finaltarget`: `final motor : engine` fixes the inherited reference (Clafer 0.5.7). Before 0.5.7, the inherited reference could still change during a trace unless restated, `final motor : engine -> Engine` (gsdlab/clafer#109).
   An abstract nested clafer that a subclafer does not refine has no instances in it: the subclafer simply lacks that part.
 - **Constraints read like requirements.** A name alone means "some" (`[ encryption ]`), a reference stands for its value (`[ speed = 3 ]`), and names resolve from the context, so most constraints need neither quantifiers nor paths.
-- **One model, many views.** The same model is a feature model to configure (claferIG, chocosolver, the configurator), a class model to instantiate, a product line with objectives to optimize (chocosolver), and, with temporal modifiers, a behaviour to simulate and check (claferIG).
+- **One model, many views.** The same model is a feature model to configure (claferIG, clafersg, the configurator), a class model to instantiate, a product line with objectives to optimize (clafersg), and, with temporal modifiers, a behaviour to simulate and check (claferIG, clafersg).
 - **Partial instances are models.** An exemplar or a test case is a concrete clafer that extends the abstract model and fixes its choices with constraints; it is checked by the same tools.
 
 ### Place constraints in their most specific context
@@ -267,7 +267,7 @@ tesla : Car
 
 ## Temporal models
 
-A model with temporal operators or modifiers is dynamic. Its traces are lassos: a few states, then a loop back. Only the Alloy backend (claferIG) supports them.
+A model with temporal operators or modifiers is dynamic. Its traces are lassos: a few states, then a loop back. Only the Alloy backend supports them: claferIG, and clafersg, which solves them with Alloy.
 
 **States are clafers that come and go.** A state machine is an `xor` group; nesting gives hierarchical states:
 
@@ -330,9 +330,9 @@ xor machine
 
 **claferIG** (Alloy): `n` next solution, `d` diff view, `i`/`s` scopes, `m` maxint, `tl n` trace length (default 10), `fork k`, `config` (another configuration of the `final` parts, or another structure of a static model), `check [line]`, `dot`, `f name`, `scope`, `saveScopes`. When there are no instances, it prints an unsat core, the fastest way to find a contradiction. `--all` saves instances, `-n` limits them, `--addtypes` prints the super clafers.
 
-**chocosolver** (Choco): `--file model.cfr`, `--repl --prettify`, `-n`, `--scope`, `--maxint`, `--scope-file`, `--addtypes`; it optimizes models with objectives. It supports neither temporal models nor `check`.
+**clafersg** (the Clafer solution generator; formerly `chocosolver`, a name that Clafer 0.6.0 no longer installs): `--file model.cfr`, `--repl --prettify`, `-n`, `--scope`, `--maxint`, `--scope-file`, `--addtypes`. It solves a static model with Choco and optimizes models with objectives; it solves a temporal model with Alloy, and its `--repl` is then claferIG's REPL, with `check`, `fork`, `config` and `tl`. It does not solve `real` and `double`.
 
-**Counting instances:** neither backend removes all symmetric instances. claferIG may print several instances identically (they differ only in the atoms behind them, e.g., two systems with identical subtrees); chocosolver may give instances that differ only in which of two identical clafers a reference points to. Compare the instances, not their numbers, and fix choices so that a configuration has exactly one.
+**Counting instances:** neither backend removes all symmetric instances. claferIG may print several instances identically (they differ only in the atoms behind them, e.g., two systems with identical subtrees); Choco may give instances that differ only in which of two identical clafers a reference points to. Compare the instances, not their numbers, and fix choices so that a configuration has exactly one.
 
 **Integers:** Alloy uses a bit width, and its integers wrap around; give the range in the model (`//# OPTIONS --maxint=1000`, and `--minint`) so that both backends use it. A generated `.als` run directly in Alloy uses 4-bit integers (−8..7) unless its scope says otherwise, which gives spurious counterexamples: prefer claferIG.
 
@@ -344,4 +344,4 @@ xor machine
 2. Check the scopes (`scope`): a reference `-> T *` may need more targets than the default scope; raise it with `i`.
 3. Check the integer range (`--maxint`): in Alloy, a constant out of range silently makes constraints false.
 4. In temporal models: an unanchored scenario applies in every state; `[ sometime x ]` means infinitely often; a scenario whose first state the model does not force must state it; check `tl`.
-5. Compare the backends: claferIG and chocosolver should agree on static models; a disagreement is a bug in one of them.
+5. Compare the backends: claferIG (Alloy) and clafersg (Choco) should agree on static models; a disagreement is a bug in one of them.
