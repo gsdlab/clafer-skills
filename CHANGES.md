@@ -1,4 +1,4 @@
-##### Clafer Skills Version 0.6.0, unreleased
+##### Clafer Skills Version 0.6.0, Nov 29, 2026
 
 * For Clafer 0.6.0.
 * `clafer-modeling`: the clocks of the initial value, `:= each` and `:= together`, which do not depend on the multiplicity, and the clock that a top-level abstract clafer with a multiplicity needs.
