@@ -1,7 +1,7 @@
 {
   "name": "clafer",
-  "version": "0.5.8",
-  "description": "Write, structure, fix and check Clafer models (.cfr), static or temporal, with clafer, claferIG and chocosolver",
+  "version": "0.6.0",
+  "description": "Write, structure, fix and check Clafer models (.cfr), static or temporal, with clafer, claferIG and clafersg",
   "author": {
     "name": "Generative Software Development Lab",
     "url": "https://github.com/gsdlab"

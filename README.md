@@ -1,14 +1,14 @@
 # Clafer skills
 
-v0.5.8
+v0.6.0
 
 Agent skills for modeling in [Clafer](https://github.com/gsdlab/clafer), a lightweight modeling language for structure and behaviour.
 
 | Skill | What it does |
 |---|---|
-| [clafer-modeling](skills/clafer-modeling/SKILL.md) | Write, structure, fix and check Clafer models (`.cfr`), static or temporal, and run them with clafer, claferIG and chocosolver |
+| [clafer-modeling](skills/clafer-modeling/SKILL.md) | Write, structure, fix and check Clafer models (`.cfr`), static or temporal, and run them with clafer, claferIG and clafersg |
 
-The skills are for Clafer 0.5.8. They expect `clafer`, `claferIG` and `chocosolver` on the `PATH`; see the [Clafer Tools installation](https://github.com/gsdlab/clafer#installation).
+The skills are for Clafer 0.6.0. They expect `clafer`, `claferIG` and `clafersg` on the `PATH`; see the [Clafer Tools installation](https://github.com/gsdlab/clafer#installation).
 
 ## Installation
 
@@ -26,7 +26,7 @@ claude plugin marketplace add gsdlab/clafer-skills
 claude plugin install clafer@clafer
 ```
 
-The skill is then available as `/clafer:clafer-modeling`, and Claude uses it on its own for Clafer models. To use the skills of a given release, add the marketplace at its tag: `gsdlab/clafer-skills#0.5.8`.
+The skill is then available as `/clafer:clafer-modeling`, and Claude uses it on its own for Clafer models. To use the skills of a given release, add the marketplace at its tag: `gsdlab/clafer-skills#0.6.0`.
 
 To update:
 

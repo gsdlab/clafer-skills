@@ -1,3 +1,9 @@
+##### Clafer Skills Version 0.6.0, Nov 29, 2026
+
+* For Clafer 0.6.0.
+* `clafer-modeling`: the clocks of the initial value, `:= each` and `:= together`, which do not depend on the multiplicity, and the clock that a top-level abstract clafer with a multiplicity needs.
+* `clafer-modeling`: `clafersg`, the new name of `chocosolver` (deprecated, no longer installed), which solves temporal models with Alloy, with claferIG's REPL and `check`.
+
 ##### Clafer Skills Version 0.5.8, Nov 15, 2026
 
 * For Clafer 0.5.8.
